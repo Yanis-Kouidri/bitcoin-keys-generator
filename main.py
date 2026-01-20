@@ -1,3 +1,4 @@
+import argparse
 import hashlib
 import hmac
 import secrets
@@ -46,11 +47,12 @@ def compute_child_keys(parent_private_key: bytes, parent_chain_code: bytes, chil
 def generate_binary_seed() -> bytes:
     entropy = secrets.randbits(256)
 
-    # print(entropy)
-
     bip39_phrase = bip39.encode_bytes(entropy.to_bytes(32, BYTE_ORDER))
     print(bip39_phrase)
+    return compute_binary_seed(bip39_phrase)
 
+
+def compute_binary_seed(bip39_phrase: str) -> bytes:
     binary_seed = hashlib.pbkdf2_hmac(HMAC_DIGEST_ALGO, bip39_phrase.encode(), b"mnemonic", 2048)
     return binary_seed
 
@@ -75,8 +77,13 @@ def compute_seg_wit_native_bitcoin_address(level4_private_key: bytes) -> str:
     return final_pub_key
 
 
-def main():
-    binary_seed = generate_binary_seed()
+def main(bip39_phrase: str):
+    if bip39_phrase:
+        print(f"Provided bip 39 phrase: {bip39_phrase}")
+        binary_seed = compute_binary_seed(bip39_phrase)
+    else:
+        binary_seed = generate_binary_seed()
+
     master_private_key, master_chain_code = compute_master_keys(binary_seed)
     # Level 0 Purpose
     level0_private_key, level0_chain_code = compute_child_keys(master_private_key, master_chain_code, 84, True)
@@ -91,11 +98,17 @@ def main():
     level3_private_key, level3_chain_code = compute_child_keys(level2_private_key, level2_chain_code, 0, False)
 
     # Level 4 Index
-    level4_private_key, level4_chain_code = compute_child_keys(level3_private_key, level3_chain_code, 0, False)
+    level4_private_key_1, level4_chain_code_1 = compute_child_keys(level3_private_key, level3_chain_code, 0, False)
+    level4_private_key_2, level4_chain_code_2 = compute_child_keys(level3_private_key, level3_chain_code, 1, False)
 
-    seg_wit_native_addr1 = compute_seg_wit_native_bitcoin_address(level4_private_key)
-    print(seg_wit_native_addr1)
+    seg_wit_native_addr1 = compute_seg_wit_native_bitcoin_address(level4_private_key_1)
+    seg_wit_native_addr2 = compute_seg_wit_native_bitcoin_address(level4_private_key_2)
+    print(f"Pub address 1: {seg_wit_native_addr1}")
+    print(f"Pub address 2: {seg_wit_native_addr2}")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(prog="Bitcoin key generator", description="A generator of bitcoin key")
+    parser.add_argument('-b', '--bip39-phrase', required=False)
+    args = parser.parse_args()
+    main(args.bip39_phrase)
