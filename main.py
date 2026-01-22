@@ -70,10 +70,10 @@ def compute_seg_wit_native_bitcoin_address(level4_private_key: bytes) -> str:
     ripemd160 = hashlib.new("ripemd160")
     ripemd160.update(sha256_level4_pub_key)
     hash160_pub_key = ripemd160.digest()
-    # print(len(hash160_pub_key))
+    print("Pub key len " + str(len(hash160_pub_key)))
 
-    data_5bit = bech32.convertbits(hash160_pub_key, 8, 5)
-    final_pub_key = bech32.encode(HRP_PREFIX, 0, list(data_5bit))
+    # data_5bit = bech32.convertbits(hash160_pub_key, 8, 5)
+    final_pub_key = bech32.encode(HRP_PREFIX, 0, list(hash160_pub_key))
     return final_pub_key
 
 
@@ -103,8 +103,10 @@ def main(bip39_phrase: str):
 
     seg_wit_native_addr1 = compute_seg_wit_native_bitcoin_address(level4_private_key_1)
     seg_wit_native_addr2 = compute_seg_wit_native_bitcoin_address(level4_private_key_2)
-    print(f"Pub address 1: {seg_wit_native_addr1}")
-    print(f"Pub address 2: {seg_wit_native_addr2}")
+    print(f"Bitcoin address 1: {seg_wit_native_addr1}")
+    print(f"Public key address 1: {compute_compressed_pub_key(level4_private_key_1).hex()}")
+    print(f"Private key address 1: {level4_private_key_1.hex()}")
+    print(f"Bitcoin address 2: {seg_wit_native_addr2}")
 
 
 if __name__ == "__main__":
