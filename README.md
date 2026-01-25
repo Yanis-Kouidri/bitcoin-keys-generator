@@ -4,3 +4,8 @@ This project aims to create a script in python for generating bitcoin wallet add
 
 > [!CAUTION]
 > For learning purpose only, do not use it for real, you may lose your bitcoins
+
+
+Supported format :
+
+- Native SegWit (Bech32) (address start by `bc1q` or `tb1q`)
