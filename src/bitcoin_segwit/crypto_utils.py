@@ -18,8 +18,12 @@ def sign_preimage_hash(sighash_preimage: bytes, private_key: int) -> bytes:
     return signature_preimage
 
 
-def bitcoin_address_to_hash160(hrp: str, bitcoin_address: str) -> bytes:
-    witness_version, hash160_source_addr = bech32.decode(hrp, bitcoin_address)
+def bitcoin_address_to_hash160(bitcoin_address: str) -> bytes:
+    if not (bitcoin_address.startswith("bc") or bitcoin_address.startswith("tb")):
+        raise ValueError("Bitcoin addre shoud start by 'bc' or 'tb'")
+    witness_version, hash160_source_addr = bech32.decode(
+        bitcoin_address[:2], bitcoin_address
+    )
     return bytes(hash160_source_addr)
 
 

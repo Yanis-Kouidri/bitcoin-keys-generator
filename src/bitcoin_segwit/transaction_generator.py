@@ -47,8 +47,8 @@ def main():
     inputs = input_count + txid + vout + script_sig + sequence
 
     # print(inputs.hex())
-    hash160_source_addr = bitcoin_address_to_hash160(HRP, source_bitcoin_addr)
-    hash160_dest_addr = bitcoin_address_to_hash160(HRP, destination_addr)
+    hash160_source_addr = bitcoin_address_to_hash160(source_bitcoin_addr)
+    hash160_dest_addr = bitcoin_address_to_hash160(destination_addr)
 
     outputs = (
         output_count + output_amount + script_size + lock + bytes(hash160_dest_addr)
