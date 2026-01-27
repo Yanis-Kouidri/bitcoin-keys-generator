@@ -69,7 +69,7 @@ def main():
     actual_outputs = output_amount + script_size + lock + bytes(hash160_dest_addr)
     hash_outputs = double_sha256(actual_outputs)
 
-    preimage = (
+    sighash_preimage = (
         version
         + hash_prevouts
         + hash_sequence
@@ -82,9 +82,9 @@ def main():
         + hash_type
     )
 
-    sighash_preimage = double_sha256(preimage)
+    sighash = double_sha256(sighash_preimage)
 
-    preimage_signature = sign_preimage_hash(sighash_preimage, source_private_key)
+    preimage_signature = sign_preimage_hash(sighash, source_private_key)
     pub_key_size = bytes([len(source_public_key)])
     sig_size = bytes([len(preimage_signature)])
     witness_item_count = bytes([2])  # Constant
