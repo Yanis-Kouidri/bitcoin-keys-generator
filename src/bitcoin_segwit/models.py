@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from crypto_utils import bitcoin_address_to_hash160
 
-from bitcoin_segwit.crypto_utils import double_sha256
+from bitcoin_segwit.crypto_utils import double_sha256, sign_preimage_hash
 
 SIGHASH_ALL = bytes.fromhex("01000000")
 
@@ -15,14 +15,26 @@ class NativeSegWitInput:
     script_length: bytes
     source_bitcoin_address: bytes
     value: int  # In satoshi
+    private_key: int
+    public_key: bytes
 
-    def __init__(self, txid: str, vout: int, bitcoin_address: str, value: int):
+    def __init__(
+        self,
+        txid: str,
+        vout: int,
+        bitcoin_address: str,
+        value: int,
+        private_key: str,
+        public_key: str,
+    ):
         self.txid = int(txid, 16).to_bytes(32, "little")
         self.vout = vout.to_bytes(4, "little")
         self.sequence = bytes.fromhex("f" * 8)
         self.script_length = bytes([0])  # No script in Native SegWit
         self.source_bitcoin_address = bitcoin_address_to_hash160(bitcoin_address)
         self.value = value
+        self.private_key = int(private_key, 16)
+        self.public_key = bytes.fromhex(public_key)
 
     def serialization(self) -> bytes:
         return self.txid + self.vout + self.script_length + self.sequence
@@ -49,7 +61,7 @@ class NativeSegWitOutput:
         return (
             self.value.to_bytes(length=8, byteorder="little")
             + (len(self.get_addr_hash()) + 2).to_bytes(
-                byteorder="little"
+                1, byteorder="little"
             )  # +2 for witness version and
             + self.witness_version.to_bytes(1, "little")
             + (len(self.get_addr_hash())).to_bytes(1, byteorder="little")
@@ -59,7 +71,7 @@ class NativeSegWitOutput:
 
 class NativeSegWitBitcoinTransaction:
     version: bytes
-    flag: int
+    flag: bytes
     inputs: list[NativeSegWitInput]
     outputs: list[NativeSegWitOutput]
     lock_time: bytes
@@ -69,20 +81,43 @@ class NativeSegWitBitcoinTransaction:
         self.lock_time = lock_time.to_bytes(4, "little")
         self.inputs = []
         self.outputs = []
+        self.flag = bytes.fromhex("0001")  # Constant
 
-    def add_input(self, txid: str, vout: int, bitcoin_addr: str, value: int):
-        new_input = NativeSegWitInput(txid, vout, bitcoin_addr, value)
+    def add_input(
+        self,
+        txid: str,
+        vout: int,
+        bitcoin_addr: str,
+        value: int,
+        private_key: str,
+        public_key,
+    ):
+        new_input = NativeSegWitInput(
+            txid, vout, bitcoin_addr, value, private_key, public_key
+        )
         self.inputs.append(new_input)
 
     def add_output(self, value: int, destination_addr: str):
         new_output = NativeSegWitOutput(value, destination_addr)
         self.outputs.append(new_output)
 
-    def get_tx_in_count(self) -> int:
-        return len(self.inputs)
+    def get_tx_in_count(self) -> bytes:
+        return len(self.inputs).to_bytes(1, "little")
 
-    def get_tx_out_count(self) -> int:
-        return len(self.outputs)
+    def get_tx_in_serialization(self) -> bytes:
+        all_tx_in = bytes()
+        for tx_in in self.inputs:
+            all_tx_in += tx_in.serialization()
+        return all_tx_in
+
+    def get_tx_out_serialization(self) -> bytes:
+        all_tx_out = bytes()
+        for tx_out in self.outputs:
+            all_tx_out += tx_out.serialization()
+        return all_tx_out
+
+    def get_tx_out_count(self) -> bytes:
+        return len(self.outputs).to_bytes(1, "little")
 
     def compute_hash_prevouts(self) -> bytes:
         prevouts = bytes()
@@ -127,10 +162,25 @@ class NativeSegWitBitcoinTransaction:
         )
         return double_sha256(sighash_preimage)
 
-    def compute_signature(self):
-        der_header = bytes.fromhex("30")
-        total_lenght = 0
-        int_marker = bytes.fromhex("02")
-
-    def compute_witness_data_p2wpkh(self):
+    def compute_witness_data_p2wpkh(self) -> bytes:
         item_count = bytes([2])
+        signature = sign_preimage_hash(
+            self.compute_sighash(0), self.inputs[0].private_key
+        )
+        sig_length = len(signature).to_bytes(1, "little")
+        pub_key = self.inputs[0].public_key
+        pub_key_length = len(pub_key).to_bytes(1, "little")
+        return item_count + sig_length + signature + pub_key_length + pub_key
+
+    def serialization(self) -> str:
+        transaction = (
+            self.version
+            + self.flag
+            + self.get_tx_in_count()
+            + self.get_tx_in_serialization()
+            + self.get_tx_out_count()
+            + self.get_tx_out_serialization()
+            + self.compute_witness_data_p2wpkh()
+            + self.lock_time
+        )
+        return transaction.hex()

@@ -83,6 +83,7 @@ def main():
     )
 
     sighash = double_sha256(sighash_preimage)
+    print(f"Sighash: {sighash.hex()}")
 
     preimage_signature = sign_preimage_hash(sighash, source_private_key)
     pub_key_size = bytes([len(source_public_key)])

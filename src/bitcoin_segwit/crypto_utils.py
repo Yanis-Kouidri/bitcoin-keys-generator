@@ -13,7 +13,8 @@ def sign_preimage_hash(sighash_preimage: bytes, private_key: int) -> bytes:
     signature_preimage = sk.sign_digest_deterministic(
         digest=sighash_preimage, sigencode=ecdsa.util.sigencode_der
     )
-    signature_preimage += bytes([1])
+    sighash_flag = bytes([1])
+    signature_preimage += sighash_flag
     # print(f"Signature: {signature_preimage}")
     return signature_preimage
 
