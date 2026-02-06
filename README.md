@@ -9,3 +9,9 @@ This project aims to create a script in python for generating bitcoin wallet add
 Supported format :
 
 - Native SegWit (Bech32) (address start by `bc1q` or `tb1q`)
+
+Send a transaction on the sigtest network:
+
+```bash
+curl -X POST https://mempool.space/testnet4/api/tx -d ""
+```

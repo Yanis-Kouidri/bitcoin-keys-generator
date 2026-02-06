@@ -163,14 +163,20 @@ class NativeSegWitBitcoinTransaction:
         return double_sha256(sighash_preimage)
 
     def compute_witness_data_p2wpkh(self) -> bytes:
-        item_count = bytes([2])
-        signature = sign_preimage_hash(
-            self.compute_sighash(0), self.inputs[0].private_key
-        )
-        sig_length = len(signature).to_bytes(1, "little")
-        pub_key = self.inputs[0].public_key
-        pub_key_length = len(pub_key).to_bytes(1, "little")
-        return item_count + sig_length + signature + pub_key_length + pub_key
+        number_of_item = 2  # P2WPKH constant
+        item_count = number_of_item.to_bytes(length=1, byteorder="little")
+        witness_data = bytes()
+        for i in range(len(self.inputs)):
+            signature = sign_preimage_hash(
+                self.compute_sighash(i), self.inputs[i].private_key
+            )
+            sig_length = len(signature).to_bytes(1, "little")
+            pub_key = self.inputs[i].public_key
+            pub_key_length = len(pub_key).to_bytes(1, "little")
+            witness_data += (
+                item_count + sig_length + signature + pub_key_length + pub_key
+            )
+        return witness_data
 
     def serialization(self) -> str:
         transaction = (
