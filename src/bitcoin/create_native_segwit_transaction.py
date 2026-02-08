@@ -1,6 +1,6 @@
 import argparse
 
-from bitcoin_segwit.models import NativeSegWitBitcoinTransaction
+from bitcoin.native_segwit_tx_models import NativeSegWitBitcoinTransaction
 
 
 def main():
