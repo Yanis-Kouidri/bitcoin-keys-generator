@@ -3,6 +3,7 @@ import hmac
 import secrets
 from typing import Literal, Tuple
 
+import bech32m
 import bip39
 import ecdsa
 
@@ -10,6 +11,8 @@ BYTE_ORDER: Literal["big", "little"] = "big"
 HMAC_DIGEST_ALGO = "sha512"
 HMAC_DIGEST_ITERATIONS = 2048
 HMAC_DIGEST_SALT = b"mnemonic"
+HRP = "bc"
+TAPROOT_WITNESS_VERSION = 1
 
 
 def compute_binary_seed(bip39_phrase: str) -> bytes:
@@ -74,3 +77,33 @@ def compute_compressed_public_key(private_key: int):
         1, BYTE_ORDER
     ) + pubkey_point.x().to_bytes(32, BYTE_ORDER)
     return compressed_pub_key
+
+
+def compute_final_pub_key(
+    private_key: int,
+) -> Tuple[int, ecdsa.ellipticcurve.PointJacobi]:
+    pubkey_point: ecdsa.ellipticcurve.PointJacobi = (
+        private_key * ecdsa.SECP256k1.generator
+    )
+    if pubkey_point.y() % 2 == 0:
+        return private_key, pubkey_point.x()
+    else:
+        new_private_key = ecdsa.SECP256k1.order - private_key
+        return new_private_key, pubkey_point
+
+
+def compute_tweak(public_key: int):
+    tap_tweak_hash = hashlib.sha256(b"TapTweak").digest()
+    pre_final_result = (
+        tap_tweak_hash + tap_tweak_hash + public_key.to_bytes(32, BYTE_ORDER)
+    )
+    return int.from_bytes(hashlib.sha256(pre_final_result).digest(), BYTE_ORDER)
+
+
+def compute_output_key(private_key: int):
+    new_private_key, q_point = compute_final_pub_key(private_key)
+    tweak = compute_tweak(q_point.x())
+    ajusted_key = q_point + tweak * ecdsa.SECP256k1.generator
+    witness_program = ajusted_key.x().to_bytes(32, BYTE_ORDER)
+    final_pub_key = bech32m.encode(HRP, TAPROOT_WITNESS_VERSION, witness_program)
+    return final_pub_key
