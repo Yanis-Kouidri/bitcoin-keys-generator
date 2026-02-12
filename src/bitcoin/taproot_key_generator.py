@@ -6,6 +6,7 @@ from typing import Literal, Tuple
 import bech32m
 import bip39
 import ecdsa
+from ecdsa.ellipticcurve import PointJacobi
 
 BYTE_ORDER: Literal["big", "little"] = "big"
 HMAC_DIGEST_ALGO = "sha512"
@@ -60,7 +61,7 @@ def derive_child_key(
     )
     child_private_key = (
         int.from_bytes(parent_private_key, BYTE_ORDER)
-        + int.from_bytes(child_node[32:64], BYTE_ORDER)
+        + int.from_bytes(child_node[0:32], BYTE_ORDER)
     ) % ecdsa.SECP256k1.order
 
     child_chain_code = child_node[32:64]
@@ -69,27 +70,12 @@ def derive_child_key(
 
 
 def compute_compressed_public_key(private_key: int):
-    pubkey_point: ecdsa.ellipticcurve.PointJacobi = (
-        private_key * ecdsa.SECP256k1.generator
-    )
+    pubkey_point: PointJacobi = private_key * ecdsa.SECP256k1.generator
     parity_prefix = 0x02 if pubkey_point.y() % 2 == 0 else 0x03
     compressed_pub_key = parity_prefix.to_bytes(
         1, BYTE_ORDER
     ) + pubkey_point.x().to_bytes(32, BYTE_ORDER)
     return compressed_pub_key
-
-
-def compute_final_pub_key(
-    private_key: int,
-) -> Tuple[int, ecdsa.ellipticcurve.PointJacobi]:
-    pubkey_point: ecdsa.ellipticcurve.PointJacobi = (
-        private_key * ecdsa.SECP256k1.generator
-    )
-    if pubkey_point.y() % 2 == 0:
-        return private_key, pubkey_point.x()
-    else:
-        new_private_key = ecdsa.SECP256k1.order - private_key
-        return new_private_key, pubkey_point
 
 
 def compute_tweak(public_key: int):
@@ -100,10 +86,25 @@ def compute_tweak(public_key: int):
     return int.from_bytes(hashlib.sha256(pre_final_result).digest(), BYTE_ORDER)
 
 
-def compute_output_key(private_key: int):
-    new_private_key, q_point = compute_final_pub_key(private_key)
-    tweak = compute_tweak(q_point.x())
-    ajusted_key = q_point + tweak * ecdsa.SECP256k1.generator
-    witness_program = ajusted_key.x().to_bytes(32, BYTE_ORDER)
-    final_pub_key = bech32m.encode(HRP, TAPROOT_WITNESS_VERSION, witness_program)
-    return final_pub_key
+def compute_bitcoin_addr(private_key: int) -> Tuple[str, int, int]:
+    internal_pubkey_point: PointJacobi = private_key * ecdsa.SECP256k1.generator
+
+    if internal_pubkey_point.y() % 2 == 0:
+        adjusted_private_key: int = private_key
+        adjusted_pubkey_point: PointJacobi = internal_pubkey_point
+    else:
+        adjusted_private_key: int = ecdsa.SECP256k1.order - private_key  # d_adjusted
+        adjusted_pubkey_point: PointJacobi = (
+            adjusted_private_key * ecdsa.SECP256k1.generator
+        )
+
+    tweak: int = compute_tweak(adjusted_pubkey_point.x())
+    output_pubkey_point: PointJacobi = (
+        adjusted_pubkey_point + tweak * ecdsa.SECP256k1.generator
+    )  # Q Point
+    witness_program = output_pubkey_point.x().to_bytes(32, BYTE_ORDER)
+    bitcoin_addr: str = bech32m.encode(HRP, TAPROOT_WITNESS_VERSION, witness_program)
+    final_private_key = (
+        adjusted_private_key + tweak
+    ) % ecdsa.SECP256k1.order  # d_Q (Tweaked Private Key)
+    return bitcoin_addr, final_private_key, output_pubkey_point.x()

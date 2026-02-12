@@ -5,14 +5,14 @@ from taproot_key_generator import (
 )
 
 from bitcoin.taproot_key_generator import (
-    compute_final_pub_key,
-    compute_output_key,
+    compute_bitcoin_addr,
     compute_tweak,
 )
 
 
 def main():
     binary_seed = generate_binary_seed()
+
     master_private_key, master_chain_code = derive_binary_seed(binary_seed)
     purpose_private_key, purpose_chain_code = derive_child_key(
         master_private_key, master_chain_code, True, 86
@@ -30,13 +30,12 @@ def main():
         reception_private_key, reception_chain_code, False, 0
     )
 
-    final_private_key_1, final_pub_key_1 = compute_final_pub_key(
-        int.from_bytes(pre_final_private_key_1)
-    )
-    very_final_pub_key = compute_output_key(
+    bitcoin_addr, private_key, pub_key = compute_bitcoin_addr(
         private_key=int.from_bytes(pre_final_private_key_1)
     )
-    print(very_final_pub_key)
+    print(f"Bitcoin Taproot address: {bitcoin_addr}")
+    print(f"Public key: {pub_key:0x}")
+    print(f"Private key: {private_key:0x}")
 
 
 if __name__ == "__main__":
