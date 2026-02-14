@@ -1,6 +1,6 @@
 import pytest
 
-from bitcoin.native_segwit_tx_models import NativeSegWitInput
+from bitcoin.native_segwit.tx_models import NativeSegWitInput
 
 SEGWIT_INPUT_SIZE = 41
 

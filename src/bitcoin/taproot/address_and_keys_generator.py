@@ -1,13 +1,10 @@
 import argparse
 
-from taproot_key_generator import (
+from bitcoin.taproot.address_and_keys_utils import (
+    compute_bitcoin_addr,
     derive_binary_seed,
     derive_child_key,
     generate_binary_seed,
-)
-
-from bitcoin.taproot_key_generator import (
-    compute_bitcoin_addr,
     mnemonic_phrase_to_binary_seed,
 )
 

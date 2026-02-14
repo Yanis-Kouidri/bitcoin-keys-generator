@@ -1,8 +1,10 @@
 from dataclasses import dataclass
 
-from crypto_utils import bitcoin_address_to_hash160
-
-from bitcoin.crypto_utils import double_sha256, sign_preimage_hash
+from bitcoin.utils.crypto_utils import (
+    bitcoin_address_to_hash160,
+    double_sha256,
+    sign_preimage_hash,
+)
 
 SIGHASH_ALL = bytes.fromhex("01000000")
 
