@@ -12,7 +12,8 @@ BYTE_ORDER: Literal["big", "little"] = "big"
 HMAC_DIGEST_ALGO = "sha512"
 HMAC_DIGEST_ITERATIONS = 2048
 HMAC_DIGEST_SALT = b"mnemonic"
-HRP = "bc"
+MAINNET_HRP = "bc"
+TESTNET_HRP = "tb"  # Also work for Signet
 TAPROOT_WITNESS_VERSION = 1
 
 
@@ -33,6 +34,10 @@ def generate_binary_seed() -> bytes:
     bip39_phrase = bip39.encode_bytes(entropy.to_bytes(32, BYTE_ORDER))
     print(bip39_phrase)
     return compute_binary_seed(bip39_phrase)
+
+
+def mnemonic_phrase_to_binary_seed(phrase: str) -> bytes:
+    return bip39.phrase_to_seed(phrase)
 
 
 def derive_binary_seed(binary_seed: bytes) -> Tuple[bytes, bytes]:
@@ -86,7 +91,9 @@ def compute_tweak(public_key: int):
     return int.from_bytes(hashlib.sha256(pre_final_result).digest(), BYTE_ORDER)
 
 
-def compute_bitcoin_addr(private_key: int) -> Tuple[str, int, int]:
+def compute_bitcoin_addr(
+    private_key: int, is_mainnet: bool = True
+) -> Tuple[str, int, int]:
     internal_pubkey_point: PointJacobi = private_key * ecdsa.SECP256k1.generator
 
     if internal_pubkey_point.y() % 2 == 0:
@@ -103,7 +110,9 @@ def compute_bitcoin_addr(private_key: int) -> Tuple[str, int, int]:
         adjusted_pubkey_point + tweak * ecdsa.SECP256k1.generator
     )  # Q Point
     witness_program = output_pubkey_point.x().to_bytes(32, BYTE_ORDER)
-    bitcoin_addr: str = bech32m.encode(HRP, TAPROOT_WITNESS_VERSION, witness_program)
+    hrp = MAINNET_HRP if is_mainnet else TESTNET_HRP
+
+    bitcoin_addr: str = bech32m.encode(hrp, TAPROOT_WITNESS_VERSION, witness_program)
     final_private_key = (
         adjusted_private_key + tweak
     ) % ecdsa.SECP256k1.order  # d_Q (Tweaked Private Key)
