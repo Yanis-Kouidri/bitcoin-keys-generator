@@ -36,3 +36,8 @@ def bitcoin_address_to_hash160(bitcoin_address: str) -> bytes:
 
 def double_sha256(data_to_hash: bytes) -> bytes:
     return hashlib.sha256(hashlib.sha256(data=data_to_hash).digest()).digest()
+
+
+def tagged_hash(tag: bytes, msg: bytes):
+    tag_hash = hashlib.sha256(data=tag).digest()
+    return hashlib.sha256(data=tag_hash + tag_hash + msg).digest()
