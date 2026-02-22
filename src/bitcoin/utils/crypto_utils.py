@@ -11,7 +11,7 @@ def signcode_bitcoin_der(r, s, order):
     return ecdsa.util.sigencode_der(r, s, order)
 
 
-def sign_preimage_hash(sighash_preimage: bytes, private_key: int) -> bytes:
+def sign_preimage_hash_ecdsa(sighash_preimage: bytes, private_key: int) -> bytes:
     sk = ecdsa.SigningKey.from_secret_exponent(
         secexp=private_key, curve=SECP256k1, hashfunc=hashlib.sha256
     )

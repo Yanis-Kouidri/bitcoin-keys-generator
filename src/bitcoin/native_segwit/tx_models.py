@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from bitcoin.utils.crypto_utils import (
     bitcoin_address_to_hash160,
     double_sha256,
-    sign_preimage_hash,
+    sign_preimage_hash_ecdsa,
 )
 
 SIGHASH_ALL = bytes.fromhex("01000000")
@@ -169,7 +169,7 @@ class NativeSegWitBitcoinTransaction:
         item_count = number_of_item.to_bytes(length=1, byteorder="little")
         witness_data = bytes()
         for i in range(len(self.inputs)):
-            signature = sign_preimage_hash(
+            signature = sign_preimage_hash_ecdsa(
                 self.compute_sighash(i), self.inputs[i].private_key
             )
             sig_length = len(signature).to_bytes(1, "little")
