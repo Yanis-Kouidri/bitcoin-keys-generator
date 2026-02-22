@@ -1,6 +1,7 @@
 import hashlib
 
 import bech32
+import coincurve
 import ecdsa.rfc6979
 from ecdsa import SECP256k1
 
@@ -41,3 +42,8 @@ def double_sha256(data_to_hash: bytes) -> bytes:
 def tagged_hash(tag: bytes, msg: bytes):
     tag_hash = hashlib.sha256(data=tag).digest()
     return hashlib.sha256(data=tag_hash + tag_hash + msg).digest()
+
+
+def sign_schnorr(private_key: bytes, message: bytes) -> bytes:
+    my_private_key = coincurve.PrivateKey(secret=private_key)
+    return my_private_key.sign_schnorr(message)

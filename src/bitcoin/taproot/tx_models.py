@@ -1,27 +1,33 @@
 from hashlib import sha256
 from typing import Final
 
-from bitcoin.utils.crypto_utils import tagged_hash
+from bitcoin.utils.crypto_utils import tagged_hash, sign_schnorr
 
 
 class Input:
-    SCRIPT_SIG: Final[bytes] = bytes.fromhex("00")
-    SEQUENCE: Final[bytes] = bytes.fromhex("ff ff ff ff")
     txid: bytes
     vout: bytes
     amount: bytes
     script_pub_key: bytes  # scriptPubKey of the output that I spend (look on mempool)
+    private_key: bytes  # This private key should be x-only and tweaked
+
+    SCRIPT_SIG: Final[bytes] = bytes.fromhex("00")
+    SEQUENCE: Final[bytes] = bytes.fromhex("ff ff ff ff")
+
     TXID_FIELD_LENGTH: int = 32
     VOUT_FIELD_LENGTH: int = 4
     AMOUNT_FIELD_LENGTH: int = 8
 
-    def __init__(self, txid: str, vout: int, amount: int, script_pub_key: str):
+    def __init__(
+            self, txid: str, vout: int, amount: int, script_pub_key: str, private_key: str
+    ):
         self.txid = int(txid, 16).to_bytes(self.TXID_FIELD_LENGTH, "little")
         self.vout = vout.to_bytes(self.VOUT_FIELD_LENGTH, "little")
         self.amount = amount.to_bytes(self.AMOUNT_FIELD_LENGTH, "little")
         if len(script_pub_key) > 254 * 2:
             raise ValueError("Scipt pub key should be lower than 254 bytes")
         self.script_pub_key = bytes.fromhex(script_pub_key)
+        self.private_key = bytes.fromhex(private_key)
 
     def serialization(self):
         return self.txid + self.vout + self.SCRIPT_SIG + self.SEQUENCE
@@ -50,11 +56,11 @@ class Output:
 
     def serialization(self):
         return (
-            self.value
-            + self.SCRIPT_PUB_KEY_LENGTH
-            + self.WITNESS_VERSION
-            + self.WITNESS_SIZE
-            + self.output_key
+                self.value
+                + self.SCRIPT_PUB_KEY_LENGTH
+                + self.WITNESS_VERSION
+                + self.WITNESS_SIZE
+                + self.output_key
         )
 
 
@@ -86,23 +92,25 @@ class Transaction:
     def compute_witnesses(self):
         print()
 
-    def compute_witness_i(self, index: int):
-        nb_of_element = 1
-        schnorr_sig_size = 64
+    def compute_witness_i(self, index: int) -> bytes:
+        nb_of_element = bytes.fromhex("01")
+        schnorr_sig_size = bytes.fromhex("40")
+        schnorr_signature = sign_schnorr(self.inputs[index].private_key, self.compute_tap_sighash(index))
+        return nb_of_element + schnorr_sig_size + schnorr_signature
 
     def compute_tap_sighash(self, input_index: int) -> bytes:
         sighash_message = (
-            self.EPOCH
-            + self.SIGHASH_TYPE
-            + self.N_VERSION
-            + self.n_lock_time
-            + self.compute_hash_prevouts()
-            + self.compute_hash_amounts()
-            + self.compute_hash_script_pub_keys()
-            + self.compute_hash_sequences()
-            + self.compute_hash_outputs()
-            + self.SPEND_TYPE
-            + input_index.to_bytes(self.SIGHASH_INPUT_INDEX_FIELD_LENGTH, "little")
+                self.EPOCH
+                + self.SIGHASH_TYPE
+                + self.N_VERSION
+                + self.n_lock_time
+                + self.compute_hash_prevouts()
+                + self.compute_hash_amounts()
+                + self.compute_hash_script_pub_keys()
+                + self.compute_hash_sequences()
+                + self.compute_hash_outputs()
+                + self.SPEND_TYPE
+                + input_index.to_bytes(self.SIGHASH_INPUT_INDEX_FIELD_LENGTH, "little")
         )
 
         return tagged_hash(b"TapSighash", sighash_message)
@@ -124,7 +132,7 @@ class Transaction:
         for tx_input in self.inputs:
             script_pub_keys_length = len(tx_input.script_pub_key)
             script_pub_keys_concat += (
-                script_pub_keys_length.to_bytes(1, "little") + tx_input.script_pub_key
+                    script_pub_keys_length.to_bytes(1, "little") + tx_input.script_pub_key
             )
         return sha256(script_pub_keys_concat).digest()
 
