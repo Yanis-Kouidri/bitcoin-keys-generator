@@ -1,6 +1,8 @@
 from hashlib import sha256
 from typing import Final
 
+from bitcoin.utils.crypto_utils import tagged_hash
+
 
 class Input:
     SCRIPT_SIG: Final[bytes] = bytes.fromhex("00")
@@ -9,7 +11,7 @@ class Input:
     vout: bytes
     amount: bytes
     script_pub_key: bytes  # scriptPubKey of the output that I spend (look on mempool)
-    TXID_FIELD_LENGTH: int = 36
+    TXID_FIELD_LENGTH: int = 32
     VOUT_FIELD_LENGTH: int = 4
     AMOUNT_FIELD_LENGTH: int = 8
 
@@ -17,6 +19,8 @@ class Input:
         self.txid = int(txid, 16).to_bytes(self.TXID_FIELD_LENGTH, "little")
         self.vout = vout.to_bytes(self.VOUT_FIELD_LENGTH, "little")
         self.amount = amount.to_bytes(self.AMOUNT_FIELD_LENGTH, "little")
+        if len(script_pub_key) > 254 * 2:
+            raise ValueError("Scipt pub key should be lower than 254 bytes")
         self.script_pub_key = bytes.fromhex(script_pub_key)
 
     def serialization(self):
@@ -42,6 +46,7 @@ class Output:
             raise ValueError(
                 f"The output key Q must be 32 bytes. Received: {len(output_key_byte)} bytes"
             )
+        self.output_key = output_key_byte
 
     def serialization(self):
         return (
@@ -54,16 +59,23 @@ class Output:
 
 
 class Transaction:
-    N_VERSION: Final[bytes] = bytes.fromhex("02 00 00 00")
-    FLAG: Final[bytes] = bytes.fromhex("00 01")
-
     inputs: list[Input]
     outputs: list[Output]
+    n_lock_time: bytes
 
-    def __init__(self):
+    N_VERSION: Final[bytes] = bytes.fromhex("02 00 00 00")
+    FLAG: Final[bytes] = bytes.fromhex("00 01")
+    EPOCH: Final[bytes] = bytes.fromhex("00")
+    SIGHASH_TYPE: Final[bytes] = bytes.fromhex("00")  # SIGHASH_DEFAULT
+    SPEND_TYPE: Final[bytes] = bytes.fromhex("00")  # Key path spend
+
+    LOCK_TIME_FIELD_LENGTH: int = 4
+    SIGHASH_INPUT_INDEX_FIELD_LENGTH: int = 4
+
+    def __init__(self, lock_time: int = 0):
         self.inputs = []
         self.outputs = []
-        self._n_lock_time = 0
+        self.n_lock_time = lock_time.to_bytes(self.LOCK_TIME_FIELD_LENGTH, "little")
 
     def add_input(self, input_to_add: Input):
         self.inputs.append(input_to_add)
@@ -78,8 +90,22 @@ class Transaction:
         nb_of_element = 1
         schnorr_sig_size = 64
 
-    def compute_tap_sighash(self):
-        epoch = 0
+    def compute_tap_sighash(self, input_index: int) -> bytes:
+        sighash_message = (
+            self.EPOCH
+            + self.SIGHASH_TYPE
+            + self.N_VERSION
+            + self.n_lock_time
+            + self.compute_hash_prevouts()
+            + self.compute_hash_amounts()
+            + self.compute_hash_script_pub_keys()
+            + self.compute_hash_sequences()
+            + self.compute_hash_outputs()
+            + self.SPEND_TYPE
+            + input_index.to_bytes(self.SIGHASH_INPUT_INDEX_FIELD_LENGTH, "little")
+        )
+
+        return tagged_hash(b"TapSighash", sighash_message)
 
     def compute_hash_prevouts(self) -> bytes:
         outpoints_concat = bytes()  # TXID + VOUT of all inputs
@@ -96,7 +122,10 @@ class Transaction:
     def compute_hash_script_pub_keys(self) -> bytes:
         script_pub_keys_concat = bytes()
         for tx_input in self.inputs:
-            script_pub_keys_concat += tx_input.script_pub_key
+            script_pub_keys_length = len(tx_input.script_pub_key)
+            script_pub_keys_concat += (
+                script_pub_keys_length.to_bytes(1, "little") + tx_input.script_pub_key
+            )
         return sha256(script_pub_keys_concat).digest()
 
     def compute_hash_sequences(self) -> bytes:
