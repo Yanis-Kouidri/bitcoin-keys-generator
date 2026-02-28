@@ -22,8 +22,8 @@ def print_index_addr(index_private_key: bytes, index: int, is_testnet: bool):
     network = "Testnet" if is_testnet else "Mainnet"
     print(f"----------Index {index} ({network})------------------")
     print(f"Bitcoin Taproot address: {bitcoin_addr}")
-    print(f"Public key: {pub_key:0x}")
-    print(f"Private key: {private_key:0x}")
+    print(f"Public key: {pub_key:064x}")
+    print(f"Private key: {private_key:064x}")
     print("-" * 25)
 
 

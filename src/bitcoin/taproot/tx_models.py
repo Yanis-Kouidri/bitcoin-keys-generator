@@ -74,6 +74,8 @@ class Transaction:
     EPOCH: Final[bytes] = bytes.fromhex("00")
     SIGHASH_TYPE: Final[bytes] = bytes.fromhex("00")  # SIGHASH_DEFAULT
     SPEND_TYPE: Final[bytes] = bytes.fromhex("00")  # Key path spend
+    WITNESS_NUMBER_OF_ELEMENTS: Final[bytes] = bytes.fromhex("01")
+    SCHNORR_SIGNATURE_SIZE: Final[bytes] = bytes.fromhex("40")  # 64 bytes
 
     LOCK_TIME_FIELD_LENGTH: int = 4
     SIGHASH_INPUT_INDEX_FIELD_LENGTH: int = 4
@@ -89,12 +91,15 @@ class Transaction:
     def add_output(self, output_to_add: Output):
         self.outputs.append(output_to_add)
 
-    def compute_witnesses(self):
-        print()
+    def compute_witnesses(self) -> bytes:
+        witness_field: bytes = bytes()
+        for i in range(len(self.inputs)):
+            witness_field += self.compute_witness_i(i)
+        return witness_field
 
     def compute_witness_i(self, index: int) -> bytes:
-        nb_of_element = bytes.fromhex("01")
-        schnorr_sig_size = bytes.fromhex("40")
+        nb_of_element = self.WITNESS_NUMBER_OF_ELEMENTS
+        schnorr_sig_size = self.SCHNORR_SIGNATURE_SIZE
         schnorr_signature = sign_schnorr(self.inputs[index].private_key, self.compute_tap_sighash(index))
         return nb_of_element + schnorr_sig_size + schnorr_signature
 
@@ -147,3 +152,33 @@ class Transaction:
         for tx_output in self.outputs:
             outputs_concat += tx_output.serialization()
         return sha256(outputs_concat).digest()
+
+    def get_number_of_inputs(self) -> bytes:
+        nb_of_inputs: int = len(self.inputs)
+        if nb_of_inputs < 1:
+            raise ValueError("Transaction must have at least one input")
+        if nb_of_inputs > 252:
+            raise ValueError("Transaction has too many inputs")
+        return nb_of_inputs.to_bytes(1, "little")
+
+    def get_number_of_output(self) -> bytes:
+        nb_of_outputs: int = len(self.outputs)
+        if nb_of_outputs < 1:
+            raise ValueError("Transaction must have at least one output")
+        if nb_of_outputs > 252:
+            raise ValueError("Transaction has too many output")
+        return nb_of_outputs.to_bytes(1, "little")
+
+    def serialization(self) -> str:
+        inputs = bytes()
+        outputs = bytes()
+        for tx_input in self.inputs:
+            inputs += tx_input.serialization()
+
+        for tx_output in self.outputs:
+            outputs += tx_output.serialization()
+        tx = (
+                self.N_VERSION + self.FLAG + self.get_number_of_inputs() + inputs + self.get_number_of_output() +
+                outputs + self.compute_witnesses() + self.n_lock_time
+        )
+        return tx.hex()

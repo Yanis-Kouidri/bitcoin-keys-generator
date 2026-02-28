@@ -1,9 +1,11 @@
-from bitcoin.taproot.tx_models import Transaction, Input
+from bitcoin.taproot.tx_models import Transaction, Input, Output
 
 my_tx = Transaction()
-my_input = Input("5742303e4781e0464591b86932b447db70370d52ceefe84429a4c2eb0061931b", 1, 1000,
-                 "00143db162b73cc9b50b1562415a86837909992435f7",
-                 "d21d9788fa18d68fcfba20e745b74c528d1512f4d96870253b15711988dee5eb")
+my_input = Input("35ad632141af00c6860e809b9225e059cd26d880d23f43fbd1d9c10f71745e54", 0, 126256,
+                 "512029dd2539f1ef9a05e285326eba24be2c30c26d6678f13faf86f9f224d8f14294",
+                 "c4a9bf032685b2087a1aaa9be844ad1476effca22435154e0af41451e042aa56")
 my_tx.add_input(my_input)
 
-my_tx.compute_witness_i(0)
+my_output = Output(126256 - 1000, "a18888b028dae2277ba3c57ac34e4bbaff8e98d5227a9309722eb52b9f627823")
+my_tx.add_output(my_output)
+print(my_tx.serialization())

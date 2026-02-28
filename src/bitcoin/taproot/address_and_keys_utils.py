@@ -50,11 +50,11 @@ def derive_binary_seed(binary_seed: bytes) -> Tuple[bytes, bytes]:
 
 
 def derive_child_key(
-    parent_private_key: bytes, parent_chain_code: bytes, is_hardened: bool, index: int
+        parent_private_key: bytes, parent_chain_code: bytes, is_hardened: bool, index: int
 ) -> Tuple[bytes, bytes]:
     if is_hardened:
         padding = bytes([0])
-        hardened_index = index + 2**31
+        hardened_index = index + 2 ** 31
         message = padding + parent_private_key + hardened_index.to_bytes(4, BYTE_ORDER)
     else:
         message = compute_compressed_public_key(
@@ -65,13 +65,13 @@ def derive_child_key(
         key=parent_chain_code, msg=message, digest=HMAC_DIGEST_ALGO
     )
     child_private_key = (
-        int.from_bytes(parent_private_key, BYTE_ORDER)
-        + int.from_bytes(child_node[0:32], BYTE_ORDER)
-    ) % ecdsa.SECP256k1.order
+                                int.from_bytes(parent_private_key, BYTE_ORDER)
+                                + int.from_bytes(child_node[0:32], BYTE_ORDER)
+                        ) % ecdsa.SECP256k1.order
 
     child_chain_code = child_node[32:64]
 
-    return child_chain_code, child_private_key.to_bytes(32, BYTE_ORDER)
+    return child_private_key.to_bytes(32, BYTE_ORDER), child_chain_code
 
 
 def compute_compressed_public_key(private_key: int):
@@ -86,13 +86,13 @@ def compute_compressed_public_key(private_key: int):
 def compute_tweak(public_key: int):
     tap_tweak_hash = hashlib.sha256(b"TapTweak").digest()
     pre_final_result = (
-        tap_tweak_hash + tap_tweak_hash + public_key.to_bytes(32, BYTE_ORDER)
+            tap_tweak_hash + tap_tweak_hash + public_key.to_bytes(32, BYTE_ORDER)
     )
     return int.from_bytes(hashlib.sha256(pre_final_result).digest(), BYTE_ORDER)
 
 
 def compute_bitcoin_addr(
-    private_key: int, is_mainnet: bool = True
+        private_key: int, is_mainnet: bool = True
 ) -> Tuple[str, int, int]:
     internal_pubkey_point: PointJacobi = private_key * ecdsa.SECP256k1.generator
 
@@ -102,18 +102,18 @@ def compute_bitcoin_addr(
     else:
         adjusted_private_key: int = ecdsa.SECP256k1.order - private_key  # d_adjusted
         adjusted_pubkey_point: PointJacobi = (
-            adjusted_private_key * ecdsa.SECP256k1.generator
+                adjusted_private_key * ecdsa.SECP256k1.generator
         )
 
     tweak: int = compute_tweak(adjusted_pubkey_point.x())
     output_pubkey_point: PointJacobi = (
-        adjusted_pubkey_point + tweak * ecdsa.SECP256k1.generator
+            adjusted_pubkey_point + tweak * ecdsa.SECP256k1.generator
     )  # Q Point
     witness_program = output_pubkey_point.x().to_bytes(32, BYTE_ORDER)
     hrp = MAINNET_HRP if is_mainnet else TESTNET_HRP
 
     bitcoin_addr: str = bech32m.encode(hrp, TAPROOT_WITNESS_VERSION, witness_program)
     final_private_key = (
-        adjusted_private_key + tweak
-    ) % ecdsa.SECP256k1.order  # d_Q (Tweaked Private Key)
+                                adjusted_private_key + tweak
+                        ) % ecdsa.SECP256k1.order  # d_Q (Tweaked Private Key)
     return bitcoin_addr, final_private_key, output_pubkey_point.x()
