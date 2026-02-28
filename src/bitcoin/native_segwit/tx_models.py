@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from bitcoin.utils.crypto_utils import (
-    bitcoin_address_to_hash160,
+    native_sewgit_bitcoin_address_to_hash160,
     double_sha256,
     sign_preimage_hash_ecdsa,
 )
@@ -21,19 +21,19 @@ class NativeSegWitInput:
     public_key: bytes
 
     def __init__(
-        self,
-        txid: str,
-        vout: int,
-        bitcoin_address: str,
-        value: int,
-        private_key: str,
-        public_key: str,
+            self,
+            txid: str,
+            vout: int,
+            bitcoin_address: str,
+            value: int,
+            private_key: str,
+            public_key: str,
     ):
         self.txid = int(txid, 16).to_bytes(32, "little")
         self.vout = vout.to_bytes(4, "little")
         self.sequence = bytes.fromhex("f" * 8)
         self.script_length = bytes([0])  # No script in Native SegWit
-        self.source_bitcoin_address = bitcoin_address_to_hash160(bitcoin_address)
+        self.source_bitcoin_address = native_sewgit_bitcoin_address_to_hash160(bitcoin_address)
         self.value = value
         self.private_key = int(private_key, 16)
         self.public_key = bytes.fromhex(public_key)
@@ -57,17 +57,17 @@ class NativeSegWitOutput:
         self.witness_version = 0
 
     def get_addr_hash(self) -> bytes:
-        return bitcoin_address_to_hash160(self.destination_addr)
+        return native_sewgit_bitcoin_address_to_hash160(self.destination_addr)
 
     def serialization(self) -> bytes:
         return (
-            self.value.to_bytes(length=8, byteorder="little")
-            + (len(self.get_addr_hash()) + 2).to_bytes(
-                1, byteorder="little"
-            )  # +2 for witness version and
-            + self.witness_version.to_bytes(1, "little")
-            + (len(self.get_addr_hash())).to_bytes(1, byteorder="little")
-            + self.get_addr_hash()
+                self.value.to_bytes(length=8, byteorder="little")
+                + (len(self.get_addr_hash()) + 2).to_bytes(
+            1, byteorder="little"
+        )  # +2 for witness version and
+                + self.witness_version.to_bytes(1, "little")
+                + (len(self.get_addr_hash())).to_bytes(1, byteorder="little")
+                + self.get_addr_hash()
         )
 
 
@@ -86,13 +86,13 @@ class NativeSegWitBitcoinTransaction:
         self.flag = bytes.fromhex("0001")  # Constant
 
     def add_input(
-        self,
-        txid: str,
-        vout: int,
-        bitcoin_addr: str,
-        value: int,
-        private_key: str,
-        public_key,
+            self,
+            txid: str,
+            vout: int,
+            bitcoin_addr: str,
+            value: int,
+            private_key: str,
+            public_key,
     ):
         new_input = NativeSegWitInput(
             txid, vout, bitcoin_addr, value, private_key, public_key
@@ -138,9 +138,9 @@ class NativeSegWitBitcoinTransaction:
 
     def get_p2wpkh_script_code(self, utxo_index: int) -> bytes:
         return (
-            bytes.fromhex("1976a914")
-            + self.inputs[utxo_index].source_bitcoin_address
-            + bytes.fromhex("88ac")
+                bytes.fromhex("1976a914")
+                + self.inputs[utxo_index].source_bitcoin_address
+                + bytes.fromhex("88ac")
         )
 
     def compute_hash_outputs(self) -> bytes:
@@ -151,16 +151,16 @@ class NativeSegWitBitcoinTransaction:
 
     def compute_sighash(self, input_index: int):
         sighash_preimage = (
-            self.version
-            + self.compute_hash_prevouts()
-            + self.compute_hash_sequence()
-            + self.get_outpoint(input_index)  # Sign only the first input
-            + self.get_p2wpkh_script_code(input_index)
-            + self.inputs[input_index].value.to_bytes(8, "little")
-            + self.inputs[input_index].sequence
-            + self.compute_hash_outputs()
-            + self.lock_time
-            + SIGHASH_ALL
+                self.version
+                + self.compute_hash_prevouts()
+                + self.compute_hash_sequence()
+                + self.get_outpoint(input_index)  # Sign only the first input
+                + self.get_p2wpkh_script_code(input_index)
+                + self.inputs[input_index].value.to_bytes(8, "little")
+                + self.inputs[input_index].sequence
+                + self.compute_hash_outputs()
+                + self.lock_time
+                + SIGHASH_ALL
         )
         return double_sha256(sighash_preimage)
 
@@ -176,19 +176,19 @@ class NativeSegWitBitcoinTransaction:
             pub_key = self.inputs[i].public_key
             pub_key_length = len(pub_key).to_bytes(1, "little")
             witness_data += (
-                item_count + sig_length + signature + pub_key_length + pub_key
+                    item_count + sig_length + signature + pub_key_length + pub_key
             )
         return witness_data
 
     def serialization(self) -> str:
         transaction = (
-            self.version
-            + self.flag
-            + self.get_tx_in_count()
-            + self.get_tx_in_serialization()
-            + self.get_tx_out_count()
-            + self.get_tx_out_serialization()
-            + self.compute_witness_data_p2wpkh()
-            + self.lock_time
+                self.version
+                + self.flag
+                + self.get_tx_in_count()
+                + self.get_tx_in_serialization()
+                + self.get_tx_out_count()
+                + self.get_tx_out_serialization()
+                + self.compute_witness_data_p2wpkh()
+                + self.lock_time
         )
         return transaction.hex()

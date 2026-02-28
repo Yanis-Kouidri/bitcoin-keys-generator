@@ -26,7 +26,7 @@ def sign_preimage_hash_ecdsa(sighash_preimage: bytes, private_key: int) -> bytes
     return signature_preimage
 
 
-def bitcoin_address_to_hash160(bitcoin_address: str) -> bytes:
+def native_sewgit_bitcoin_address_to_hash160(bitcoin_address: str) -> bytes:
     if not (bitcoin_address.startswith("bc") or bitcoin_address.startswith("tb")):
         raise ValueError("Bitcoin addre shoud start by 'bc' or 'tb'")
     witness_version, hash160_source_addr = bech32.decode(
