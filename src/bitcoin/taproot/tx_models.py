@@ -47,7 +47,7 @@ class Output:
 
     VALUE_FIELD_LENGTH: int = 8
 
-    def __init__(self, value: int, taproot_address: str):
+    def __init__(self, taproot_address: str, value: int):
         self.value = value.to_bytes(self.VALUE_FIELD_LENGTH, "little")
         decoded_address: DecodedAddress = bech32m.decode(hrp=taproot_address[0:2], addr=taproot_address)
         self.witness_prog = decoded_address.witprog
