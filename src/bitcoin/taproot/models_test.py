@@ -6,6 +6,6 @@ my_input = Input("35ad632141af00c6860e809b9225e059cd26d880d23f43fbd1d9c10f71745e
                  "c4a9bf032685b2087a1aaa9be844ad1476effca22435154e0af41451e042aa56")
 my_tx.add_input(my_input)
 
-my_output = Output(126256 - 1000, "a18888b028dae2277ba3c57ac34e4bbaff8e98d5227a9309722eb52b9f627823")
+my_output = Output(126256 - 1000, "tb1p5xyg3vpgmt3zw7arc4avxnjthtlcaxx4yfafxztj966jh8mz0q3s7w8k9x")
 my_tx.add_output(my_output)
 print(my_tx.serialization())

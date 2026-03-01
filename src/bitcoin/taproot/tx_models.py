@@ -1,6 +1,9 @@
 from hashlib import sha256
 from typing import Final
 
+import bech32m
+from bech32m import DecodedAddress
+
 from bitcoin.utils.crypto_utils import tagged_hash, sign_schnorr
 
 
@@ -35,7 +38,7 @@ class Input:
 
 class Output:
     value: bytes
-    output_key: bytes  # 32 bytes
+    witness_prog: bytes  # 32 bytes
     SCRIPT_PUB_KEY_LENGTH: Final[bytes] = bytes.fromhex(
         "22"
     )  # = len (Witness versio + witness size + output key)
@@ -44,15 +47,10 @@ class Output:
 
     VALUE_FIELD_LENGTH: int = 8
 
-    def __init__(self, value: int, output_key: str):
+    def __init__(self, value: int, taproot_address: str):
         self.value = value.to_bytes(self.VALUE_FIELD_LENGTH, "little")
-        output_key_byte = bytes.fromhex(output_key)
-
-        if len(output_key_byte) != 32:
-            raise ValueError(
-                f"The output key Q must be 32 bytes. Received: {len(output_key_byte)} bytes"
-            )
-        self.output_key = output_key_byte
+        decoded_address: DecodedAddress = bech32m.decode(hrp=taproot_address[0:2], addr=taproot_address)
+        self.witness_prog = decoded_address.witprog
 
     def serialization(self):
         return (
@@ -60,7 +58,7 @@ class Output:
                 + self.SCRIPT_PUB_KEY_LENGTH
                 + self.WITNESS_VERSION
                 + self.WITNESS_SIZE
-                + self.output_key
+                + self.witness_prog
         )
 
 
