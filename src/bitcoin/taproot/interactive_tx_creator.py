@@ -68,8 +68,10 @@ def ask_inputs(tx: Transaction):
 
 def ask_output(tx: Transaction):
     output_number: int = 1
+    remaining_satoshis_to_spend: int = tx.get_available_satoshis_to_spend()
     while True:
         print(f"--- Tx output {output_number} ---")
+        print(f"Remaining satoshis to spend: {remaining_satoshis_to_spend}")
         output_questionary = questionary.form(
             taproot_addr=questionary.text(message="What is the bitcoin address of the receiver ?",
                                           validate=lambda user_input: is_correct_bitcoin_addr(user_input)),
@@ -79,8 +81,11 @@ def ask_output(tx: Transaction):
         new_output: Output = Output(output_data["taproot_addr"], int(output_data["amount"]))
         tx.add_output(new_output)
 
+        remaining_satoshis_to_spend -= int(output_data["amount"])
+
         is_finish = not questionary.confirm(message="Do you want to add another output ?", default=False).ask()
         if is_finish:
+            print(f"{remaining_satoshis_to_spend} will be used as fee for this tx")
             break
         output_number += 1
 

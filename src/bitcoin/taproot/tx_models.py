@@ -83,6 +83,12 @@ class Transaction:
         self.outputs = []
         self.n_lock_time = lock_time.to_bytes(self.LOCK_TIME_FIELD_LENGTH, "little")
 
+    def get_available_satoshis_to_spend(self) -> int:
+        satoshis: int = 0
+        for tx_input in self.inputs:
+            satoshis += int.from_bytes(tx_input.amount, "little")
+        return satoshis
+
     def add_input(self, input_to_add: Input):
         self.inputs.append(input_to_add)
 
