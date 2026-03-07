@@ -3,10 +3,13 @@ import hmac
 import secrets
 from typing import Literal, Tuple
 
+import base58check
 import bech32m
 import bip39
 import ecdsa
 from ecdsa.ellipticcurve import PointJacobi
+
+from bitcoin.utils.crypto_utils import double_sha256
 
 BYTE_ORDER: Literal["big", "little"] = "big"
 HMAC_DIGEST_ALGO = "sha512"
@@ -15,6 +18,8 @@ HMAC_DIGEST_SALT = b"mnemonic"
 MAINNET_HRP = "bc"
 TESTNET_HRP = "tb"  # Also work for Signet
 TAPROOT_WITNESS_VERSION = 1
+XPUB_VERSION: bytes = bytes.fromhex("04 88 b2 1e")  # for mainnet
+TPUB_VERSION: bytes = bytes.fromhex("04 35 87 cf")
 
 
 def compute_binary_seed(bip39_phrase: str) -> bytes:
@@ -117,3 +122,26 @@ def compute_bitcoin_addr(
                                 adjusted_private_key + tweak
                         ) % ecdsa.SECP256k1.order  # d_Q (Tweaked Private Key)
     return bitcoin_addr, final_private_key, output_pubkey_point.x()
+
+
+def compute_xpub_key(account_private_key: bytes, account_chain_code: bytes, coin_private_key: bytes,
+                     account_index: int, is_testnet: bool = False) -> str:
+    compressed_account_pub_key: bytes = compute_compressed_public_key(int.from_bytes(account_private_key, BYTE_ORDER))
+    compressed_coin_pub_key: bytes = compute_compressed_public_key(int.from_bytes(coin_private_key, BYTE_ORDER))
+    version_bytes = XPUB_VERSION if not is_testnet else TPUB_VERSION
+    depth: bytes = bytes.fromhex("03")  # Because it's account
+    parent_fingerprint: bytes = hash_160_key(compressed_coin_pub_key)  # We will only use first 4 bytes only
+    child_number: bytes = int(account_index + 2 ** 31).to_bytes(4, BYTE_ORDER)  # 2**31 because it is hardened
+    xpub = version_bytes + depth + parent_fingerprint[
+        :4] + child_number + account_chain_code + compressed_account_pub_key
+
+    xpub_key_hash: bytes = double_sha256(xpub)
+    xpub += xpub_key_hash[:4]
+
+    return base58check.b58encode(xpub).decode()
+
+
+def hash_160_key(message: bytes):
+    h160 = hashlib.new("ripemd160")
+    h160.update(message)
+    return h160.digest()

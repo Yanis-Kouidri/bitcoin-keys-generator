@@ -5,7 +5,7 @@ from bitcoin.taproot.address_and_keys_utils import (
     derive_binary_seed,
     derive_child_key,
     generate_binary_seed,
-    mnemonic_phrase_to_binary_seed,
+    mnemonic_phrase_to_binary_seed, compute_xpub_key,
 )
 
 PURPOSE_INDEX: int = 86
@@ -76,6 +76,8 @@ def main():
             reception_private_key, reception_chain_code, False, i
         )
         print_index_addr(index_i_private_key, i, args.testnet)
+
+    print(compute_xpub_key(account_private_key, account_chain_code, coin_private_key, 0, True))
 
 
 if __name__ == "__main__":
